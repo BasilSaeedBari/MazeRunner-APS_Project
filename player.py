@@ -15,7 +15,7 @@ def Character(
     "name" : Name,
     "walk_speed" : 10,
     "sprint_speed" : 30,
-    "jump_strength" : 5,
+    "jump_strength" : 10,
     "health" : health,
     "stamina" : stamina,
     "xPos" : xPos,
@@ -31,7 +31,7 @@ def Character(
     return properties
     
     
-def update(character : dict, platform_list: list):
+def update(character : dict, map: dict):
     """
     Updates the character's state, including movement, jumping, and collisions.
     Handles gravity and on-ground logic in one place.
@@ -43,14 +43,37 @@ def update(character : dict, platform_list: list):
     character_rect = rl.Rectangle(
         character["xPos"], character["yPos"], character["width"], character["height"]
     )
-
+    platform_list = map["platforms"]
     # Check for collisions with platforms
     character["on_ground"] = False  # Assume the character is not on the ground
-    for platform in platform_list:
-        platform_rect = platform["rect"]
-        
+    
+    try:
+        coins = map["coins"]
+        for collectables in coins:
+            circle = collectables["circle"]
+            if rl.check_collision_point_rec((circle["xPos"], circle["yPos"]), character_rect):
+                if collectables["state"] == 1:
+                    map["score"] += 1
+                collectables["state"] = 0        
+    except:
+        pass
+
+    for platform in platform_list:        
+        if callable(platform):
+            # Call the update function for moving platforms
+            platform_instance = platform()
+            platform_rect = platform_instance["rect"]
+            color = platform_instance["color"]
+        else:
+            # Static platform
+            platform_rect = platform["rect"]
+            color = platform["color"]
         # Check if collision occurs
         if rl.check_collision_recs(character_rect, platform_rect):
+            if color == rl.RED:
+                character["health"] -= 0.1
+            if color == rl.GREEN and map["score"] == 3:
+                map["state"] = 1
             # Determine collision directions by calculating overlap
             overlap_left = (character_rect.x + character_rect.width) - platform_rect.x
             overlap_right = (platform_rect.x + platform_rect.width) - character_rect.x
@@ -103,9 +126,9 @@ def draw(character : dict):
         int(character["height"]), 
         character["color"]
     )
-    
+
 def jump(character : dict):
-    if character["on_ground"] and (rl.is_key_down(rl.KEY_W) or rl.is_key_down(rl.KEY_SPACE)):
+    if character["on_ground"] and (rl.is_key_down(rl.KEY_W) or rl.is_key_down(rl.KEY_SPACE) or rl.is_key_down(rl.KEY_UP)):
         # Set an initial negative vertical velocity to simulate jumping up
         character["yVelocity"] = -character["jump_strength"]
         character["on_ground"] = False  # Character is now in the air
@@ -138,7 +161,7 @@ def move(character : dict):
     character["yPos"] += character["yVelocity"]
     
     
-    
+#TESTING 
 def walking(character: dict):
     if rl.is_key_down(rl.KEY_A) or rl.is_key_down(rl.KEY_LEFT):  # Move left
         character["xPos"] -= character["walk_speed"]
